@@ -87,7 +87,6 @@ class Player
       offs_x = 25
       factor = -1.0
     end
-    puts "off_x #{offs_x}"
     @cur_image.draw(@x + offs_x, @y - 49, 0, factor, 1.0)
   end
 
