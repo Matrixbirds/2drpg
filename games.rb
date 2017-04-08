@@ -44,7 +44,86 @@ class Map
   end
 end
 
+class Player
+  attr_reader :gravity, :x, :y
+  def initialize(map, x, y)
+    @map = map
+    @gravity = 0
+    @x, @y = x, y
+    @dir = :right
+    @standing, @walk1, @walk2, @jump = *Gosu::Image.load_tiles("media/cptn_ruby.png", 50, 50)
+    @cur_image = @standing
+  end
+
+  def update_cur_image(move_x)
+    if move_x == 0
+      @cur_image = @standing
+    else
+      @cur_image = (Gosu.milliseconds / 175 % 2 == 0) ? @walk1 : @walk2
+    end
+  end
+
+  def update_position(move_x)
+    if move_x > 0
+      @dir = :right
+      move_x.times { @x += 1 }
+    end
+    if move_x < 0
+      @dir = :left
+      move_x.abs.times { @x -= 1 }
+    end
+  end
+
+  def update(move_x)
+    update_cur_image(move_x)
+    update_position(move_x)
+  end
+
+  def draw
+    if @dir == :left
+      offs_x = -25
+      factor = 1.0
+    else
+      offs_x = 25
+      factor = -1.0
+    end
+    puts "off_x #{offs_x}"
+    @cur_image.draw(@x + offs_x, @y - 49, 0, factor, 1.0)
+  end
+
+  def jump
+    if @gravity == 0
+      @gravity -= 1
+    end
+  end
+end
+
+class Camera
+  attr_reader :x, :y
+  def initialize(map, player)
+    @x, @y = 0, 0
+    @map, @player = map, player
+  end
+
+  def update(move_x)
+    @player.update(move_x)
+    @x = [[@player.x - Games::WIDTH / 2, 0].max, @map.width * 50 - Games::WIDTH].min
+  end
+
+  def draw
+    Gosu.translate(-@x, -@y) do
+      @map.draw
+      @player.draw
+    end
+  end
+
+  private
+  attr_reader :map, :player
+end
+
 class Games < Gosu::Window
+  WIDTH = ::WIDTH
+  HEIGHT = ::HEIGHT
   def initialize
     super WIDTH, HEIGHT, :fullscreen => false
 
@@ -52,35 +131,24 @@ class Games < Gosu::Window
 
     @sky = Gosu::Image.new("media/space.png", :tileable => true)
     @map = Map.new("media/cptn_ruby_map.txt")
-    @camera_x = @camera_y = 0
+    @player = Player.new(@map, 400, 100)
+    @camera = Camera.new(@map, @player)
   end
 
   def update
     move_x = 0
     if Gosu.button_down? Gosu::KB_LEFT
-      puts "LEFT"
       move_x -= 5
     end
     if Gosu.button_down? Gosu::KB_RIGHT
-      puts "RIGHT"
       move_x += 5
     end
-    move_y = 0
-    if Gosu.button_down? Gosu::KB_UP
-      move_y -= 5
-    end
-    if Gosu.button_down? Gosu::KB_DOWN
-      move_y += 5
-    end
-    @camera_x += move_x
-    @camera_y += move_y
+    @camera.update(move_x)
   end
 
   def draw
     @sky.draw 0, 0, 0
-    Gosu.translate(-@camera_x, -@camera_y) do
-      @map.draw
-    end
+    @camera.draw
   end
 
   def button_down(id)
